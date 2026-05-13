@@ -1,11 +1,18 @@
 const form = document.querySelector("#estimateForm");
 const estimateRange = document.querySelector("#estimateRange");
 const printEstimateRange = document.querySelector("#printEstimateRange");
+const printEstimateBase = document.querySelector("#printEstimateBase");
 const summaryList = document.querySelector("#summaryList");
 const siteInfoList = document.querySelector("#siteInfoList");
 const costInfoList = document.querySelector("#costInfoList");
 const customerInfoList = document.querySelector("#customerInfoList");
 const issuedDate = document.querySelector("#issuedDate");
+const quoteNo = document.querySelector("#quoteNo");
+const directCostBody = document.querySelector("#directCostBody");
+const indirectCostBody = document.querySelector("#indirectCostBody");
+const communicationNotes = document.querySelector("#communicationNotes");
+const paymentNotes = document.querySelector("#paymentNotes");
+const scopeNotes = document.querySelector("#scopeNotes");
 const calculateButton = document.querySelector("#calculateButton");
 const resetButton = document.querySelector("#resetButton");
 const printButton = document.querySelector("#printButton");
@@ -193,6 +200,14 @@ function money(value) {
   return `${Math.round(value / 10000).toLocaleString("ko-KR")}만원`;
 }
 
+function won(value) {
+  return `₩${Math.round(value).toLocaleString("ko-KR")}`;
+}
+
+function roundTo(value, unit = 10000) {
+  return Math.round(value / unit) * unit;
+}
+
 function getValue(id) {
   return document.querySelector(`#${id}`).value;
 }
@@ -229,6 +244,92 @@ function estimateWaste(area, scope, flooring) {
   return { label: "많음", amount: `약 ${tons.toFixed(1)}톤 내외` };
 }
 
+function scopeWeight(scope) {
+  return {
+    floorOnly: 0.45,
+    kitchenBath: 0.65,
+    partial: 0.75,
+    standard: 1,
+    full: 1.35,
+    restore: 1.2,
+  }[scope];
+}
+
+function buildQuoteItems(data) {
+  const area = data.area;
+  const weight = scopeWeight(data.scope);
+  const regionRate = rates.province[data.province];
+  const accessRate = rates.access[data.access];
+  const scheduleRate = rates.schedule[data.schedule];
+  const elevatorRate = data.elevator === "no" ? 1.12 : 1;
+  const commonRate = regionRate * accessRate * scheduleRate * elevatorRate;
+  const wasteTons = Number(data.waste.amount.replace(/[^0-9.]/g, "")) || 1;
+  const workers = Math.max(2, Math.ceil(area / 12 * weight));
+  const workDays = Math.max(1, Math.ceil(area / 35 * weight));
+  const direct = [];
+
+  const push = (target, item, description, unitPrice, quantity, unit) => {
+    const amount = roundTo(unitPrice * quantity * commonRate);
+    target.push({ item, description, unitPrice: roundTo(unitPrice), quantity, unit, amount });
+  };
+
+  push(direct, "철거인력", `${labels.scope[data.scope]} 인력 투입`, 250000, workers * workDays, "명");
+
+  if (data.flooring !== "none") {
+    push(direct, "바닥 철거", labels.flooring[data.flooring], rates.flooring[data.flooring], area, "평");
+  }
+
+  const structureUnit = {
+    floorOnly: 35000,
+    kitchenBath: 95000,
+    partial: 115000,
+    standard: 160000,
+    full: 230000,
+    restore: 205000,
+  }[data.scope];
+  push(direct, "내부 철거", `${labels.scope[data.scope]} 기본 공정`, structureUnit, area, "평");
+
+  push(direct, "혼합폐기물", `${data.waste.label} ${data.waste.amount}`, 180000, Math.max(1, wasteTons), "톤");
+
+  if (data.flooring === "tile" || data.flooring === "stone") {
+    const concreteTons = Math.max(1, Math.ceil(area * 0.12));
+    push(direct, "폐콘크리트", `${labels.flooring[data.flooring]} 철거 폐기물`, 140000, concreteTons, "톤");
+  }
+
+  if (data.elevator === "no" || data.access !== "normal") {
+    const equipmentUnit = data.access === "difficult" ? 450000 : 300000;
+    push(direct, "양중/반출 장비", labels.access[data.access], equipmentUnit, 1, "식");
+  }
+
+  push(direct, "보양 및 정리", "공용부 보양, 현장 정리, 반출 전 정돈", 180000, 1, "식");
+
+  const directTotal = direct.reduce((sum, row) => sum + row.amount, 0);
+  const indirect = [
+    {
+      item: "현장관리비",
+      description: "일정 조율, 작업자 배치, 현장 소통",
+      unitPrice: roundTo(directTotal * 0.05),
+      quantity: 1,
+      unit: "식",
+      amount: roundTo(directTotal * 0.05),
+    },
+    {
+      item: "공과잡비",
+      description: "소모품, 안전관리, 반출 부대비",
+      unitPrice: roundTo(Math.max(150000, directTotal * 0.035)),
+      quantity: 1,
+      unit: "식",
+      amount: roundTo(Math.max(150000, directTotal * 0.035)),
+    },
+  ];
+  const indirectTotal = indirect.reduce((sum, row) => sum + row.amount, 0);
+  const supply = directTotal + indirectTotal;
+  const vat = roundTo(supply * 0.1);
+  const total = supply + vat;
+
+  return { direct, indirect, directTotal, indirectTotal, supply, vat, total };
+}
+
 function calculateEstimate() {
   const area = Math.max(Number(getValue("area")) || 0, 1);
   const province = getValue("province");
@@ -243,20 +344,6 @@ function calculateEstimate() {
   const memo = inputValue("memo");
   const waste = estimateWaste(area, scope, flooring);
 
-  const areaCost = area * (rates.scopeBase[scope] + rates.flooring[flooring]);
-  const elevatorRate = elevator === "no" ? 1.12 : 1;
-  const wasteRate = waste.label === "많음" ? 1.1 : waste.label === "보통" ? 1.03 : 1;
-  const total = areaCost *
-    rates.province[province] *
-    rates.access[access] *
-    rates.schedule[schedule] *
-    elevatorRate *
-    wasteRate;
-
-  const low = Math.max(total * 0.9, 300000);
-  const high = Math.max(total * 1.16, low + 100000);
-  const range = `${money(low)} ~ ${money(high)}`;
-
   const data = {
     area,
     province,
@@ -270,11 +357,17 @@ function calculateEstimate() {
     customerPhone,
     memo,
     waste,
-    range,
   };
+  const quote = buildQuoteItems(data);
+  const low = Math.max(quote.total * 0.92, 300000);
+  const high = Math.max(quote.total * 1.14, low + 100000);
+  data.quote = quote;
+  data.total = quote.total;
+  data.range = `${money(low)} ~ ${money(high)}`;
 
-  estimateRange.textContent = range;
-  printEstimateRange.textContent = range;
+  estimateRange.textContent = data.range;
+  printEstimateRange.textContent = data.range;
+  printEstimateBase.textContent = won(data.total);
   renderSummary(data);
   renderDocument(data);
 }
@@ -299,27 +392,59 @@ function renderSummary(data) {
 }
 
 function renderDocument(data) {
-  issuedDate.textContent = `발행일: ${new Date().toLocaleDateString("ko-KR")}`;
+  const now = new Date();
+  const date = now.toLocaleDateString("ko-KR");
+  issuedDate.textContent = `발행일: ${date}`;
+  quoteNo.textContent = `No. AI-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}-${String(Math.round(data.area * 10)).padStart(3, "0")}`;
 
   renderRows(siteInfoList, [
+    ["수신자", data.customerName],
+    ["연락처", data.customerPhone],
     ["현장 지역", `${labels.province[data.province]} ${data.district}`],
     ["아파트 면적", `${data.area}평`],
-    ["엘리베이터", labels.elevator[data.elevator]],
-    ["반출 조건", labels.access[data.access]],
   ]);
 
   renderRows(costInfoList, [
-    ["철거 범위", labels.scope[data.scope]],
-    ["바닥 종류", labels.flooring[data.flooring]],
-    ["예상 폐기물", `${data.waste.label} (${data.waste.amount})`],
-    ["작업 희망일", labels.schedule[data.schedule]],
+    ["회사명", "철거의정석"],
+    ["대표번호", "1555-6205"],
+    ["이메일", "demolish_js@naver.com"],
+    ["문서구분", "아파트 철거 AI 가견적서"],
   ]);
 
   renderRows(customerInfoList, [
-    ["성함", data.customerName],
-    ["연락처", data.customerPhone],
-    ["메모", data.memo],
+    ["직접공사비", won(data.quote.directTotal)],
+    ["간접공사비", won(data.quote.indirectTotal)],
+    ["공급가액", won(data.quote.supply)],
+    ["VAT(10%)", won(data.quote.vat)],
+    ["최종 가견적", won(data.quote.total)],
   ]);
+
+  renderCostRows(directCostBody, data.quote.direct);
+  renderCostRows(indirectCostBody, data.quote.indirect);
+
+  communicationNotes.textContent = "본 가견적에 포함된 현장 일정, 시공 범위, 추가 요청 사항은 담당자가 현장 확인 후 직접 조율합니다.";
+  paymentNotes.textContent = "계약금, 중도금, 잔금 및 입금 계좌는 현장 견적 확정 후 별도 안내됩니다.";
+  scopeNotes.textContent = [
+    `${labels.scope[data.scope]}`,
+    `${labels.flooring[data.flooring]}`,
+    `예상 폐기물 ${data.waste.label}(${data.waste.amount})`,
+    `엘리베이터 ${labels.elevator[data.elevator]}`,
+    `반출 조건 ${labels.access[data.access]}`,
+    data.memo !== "-" ? `고객 메모: ${data.memo}` : "",
+  ].filter(Boolean).join(" · ");
+}
+
+function renderCostRows(target, rows) {
+  target.innerHTML = rows.map((row) => `
+    <tr>
+      <td>${escapeHtml(row.item)}</td>
+      <td>${escapeHtml(row.description)}</td>
+      <td>${escapeHtml(won(row.unitPrice))}</td>
+      <td>${escapeHtml(row.quantity)}</td>
+      <td>${escapeHtml(row.unit)}</td>
+      <td>${escapeHtml(won(row.amount))}</td>
+    </tr>
+  `).join("");
 }
 
 function resetForm() {

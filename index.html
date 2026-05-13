@@ -173,6 +173,7 @@
         </div>
         <div class="document-meta">
           <span>문서구분: 가견적서</span>
+          <span id="quoteNo">No. -</span>
           <span id="issuedDate">발행일: -</span>
         </div>
       </div>
@@ -182,24 +183,85 @@
       </div>
 
       <div class="document-total">
-        <span>예상 가견적 금액</span>
-        <strong id="printEstimateRange">-</strong>
+        <div>
+          <span>최종 가견적</span>
+          <strong id="printEstimateBase">-</strong>
+        </div>
+        <div>
+          <span>예상 변동 범위</span>
+          <strong id="printEstimateRange">-</strong>
+        </div>
       </div>
 
       <div class="document-grid">
         <div>
-          <h2>현장 정보</h2>
+          <h2>수신자 정보</h2>
           <dl class="document-list" id="siteInfoList"></dl>
         </div>
         <div>
-          <h2>산출 정보</h2>
+          <h2>공급자 정보</h2>
           <dl class="document-list" id="costInfoList"></dl>
         </div>
       </div>
 
       <div class="document-section">
-        <h2>고객 정보</h2>
-        <dl class="document-list compact" id="customerInfoList"></dl>
+        <h2>직접공사비</h2>
+        <div class="quote-table-wrap">
+          <table class="quote-table">
+            <thead>
+              <tr>
+                <th>항목</th>
+                <th>설명</th>
+                <th>단가</th>
+                <th>수량</th>
+                <th>단위</th>
+                <th>금액</th>
+              </tr>
+            </thead>
+            <tbody id="directCostBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="document-section">
+        <h2>간접공사비</h2>
+        <div class="quote-table-wrap">
+          <table class="quote-table">
+            <thead>
+              <tr>
+                <th>항목</th>
+                <th>설명</th>
+                <th>단가</th>
+                <th>수량</th>
+                <th>단위</th>
+                <th>금액</th>
+              </tr>
+            </thead>
+            <tbody id="indirectCostBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="document-grid document-grid-tight">
+        <div>
+          <h2>합계</h2>
+          <dl class="document-list compact" id="customerInfoList"></dl>
+        </div>
+        <div>
+          <h2>현장 소통 안내</h2>
+          <p class="document-copy" id="communicationNotes"></p>
+        </div>
+      </div>
+
+      <div class="document-grid document-grid-tight">
+        <div>
+          <h2>입금 안내</h2>
+          <p class="document-copy" id="paymentNotes"></p>
+        </div>
+        <div>
+          <h2>공사범위</h2>
+          <p class="document-copy" id="scopeNotes"></p>
+        </div>
       </div>
 
       <div class="document-footer">
