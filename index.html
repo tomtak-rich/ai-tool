@@ -1,14 +1,158 @@
 <!doctype html>
-<html lang="en">
+<html lang="ko">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Hello World</title>
-  <link href='/style.css' rel='stylesheet'>
+  <title>아파트 철거 AI 가견적 | 철거의정석</title>
+  <link href="style.css" rel="stylesheet">
 </head>
 <body>
-  <h1>Hello, world!</h1>
-  <button onclick="console.log('hello');">Press me</button>
-  <script defer type="text/javascript" src="/main.js"></script>
+  <main class="estimate-page">
+    <section class="intro">
+      <div>
+        <p class="eyebrow">철거의정석</p>
+        <h1>아파트 철거 AI 가견적</h1>
+        <p class="lead">면적, 바닥종류, 철거범위를 입력하면 예상 철거비를 바로 확인할 수 있습니다.</p>
+      </div>
+      <div class="intro-actions">
+        <button class="ghost-button" type="button" id="resetButton">초기화</button>
+        <button class="print-button" type="button" id="printTopButton">인쇄</button>
+      </div>
+    </section>
+
+    <section class="tool-grid" aria-label="아파트 철거 가견적 계산기">
+      <form class="estimate-form" id="estimateForm">
+        <div class="form-section">
+          <h2>기본 정보</h2>
+          <div class="field-grid">
+            <label>
+              <span>아파트 면적</span>
+              <div class="inline-input">
+                <input type="number" id="area" name="area" min="1" max="200" step="0.1" value="24" required>
+                <span>평</span>
+              </div>
+            </label>
+
+            <label>
+              <span>현장 지역</span>
+              <select id="region" name="region">
+                <option value="seoul">서울</option>
+                <option value="gyeonggi">경기/인천</option>
+                <option value="other">기타 지역</option>
+              </select>
+            </label>
+
+            <label>
+              <span>층수</span>
+              <select id="floor" name="floor">
+                <option value="low">1~5층</option>
+                <option value="mid">6~15층</option>
+                <option value="high">16층 이상</option>
+              </select>
+            </label>
+
+            <label>
+              <span>엘리베이터</span>
+              <select id="elevator" name="elevator">
+                <option value="yes">있음</option>
+                <option value="no">없음</option>
+              </select>
+            </label>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <h2>철거 조건</h2>
+          <div class="field-grid">
+            <label>
+              <span>바닥 종류</span>
+              <select id="flooring" name="flooring">
+                <option value="none">바닥 철거 없음</option>
+                <option value="vinyl">장판</option>
+                <option value="wood">강마루/합판마루</option>
+                <option value="tile">타일/데코타일</option>
+                <option value="stone">대리석/석재</option>
+              </select>
+            </label>
+
+            <label>
+              <span>철거 범위</span>
+              <select id="scope" name="scope">
+                <option value="partial">부분 철거</option>
+                <option value="standard" selected>기본 철거</option>
+                <option value="full">전체 철거</option>
+                <option value="restore">인테리어 원상복구</option>
+              </select>
+            </label>
+
+            <label>
+              <span>폐기물 양</span>
+              <select id="waste" name="waste">
+                <option value="low">적음</option>
+                <option value="normal" selected>보통</option>
+                <option value="high">많음</option>
+              </select>
+            </label>
+
+            <label>
+              <span>작업 희망일</span>
+              <select id="schedule" name="schedule">
+                <option value="flexible">일정 협의</option>
+                <option value="week">1주 이내</option>
+                <option value="urgent">긴급 작업</option>
+              </select>
+            </label>
+          </div>
+
+          <fieldset>
+            <legend>세부 철거 항목</legend>
+            <div class="checkbox-grid">
+              <label><input type="checkbox" name="items" value="kitchen" checked> 싱크대</label>
+              <label><input type="checkbox" name="items" value="bath"> 욕실</label>
+              <label><input type="checkbox" name="items" value="builtIn"> 붙박이장</label>
+              <label><input type="checkbox" name="items" value="molding"> 몰딩/걸레받이</label>
+              <label><input type="checkbox" name="items" value="ceiling"> 천장</label>
+              <label><input type="checkbox" name="items" value="wall"> 가벽/벽체</label>
+            </div>
+          </fieldset>
+        </div>
+
+        <div class="form-section customer-section">
+          <h2>고객 정보</h2>
+          <div class="field-grid">
+            <label>
+              <span>성함</span>
+              <input type="text" id="customerName" name="customerName" placeholder="홍길동">
+            </label>
+            <label>
+              <span>연락처</span>
+              <input type="tel" id="customerPhone" name="customerPhone" placeholder="010-0000-0000">
+            </label>
+          </div>
+          <label>
+            <span>메모</span>
+            <textarea id="memo" name="memo" rows="3" placeholder="예: 32평 아파트 부분 철거, 바닥은 강마루입니다."></textarea>
+          </label>
+        </div>
+      </form>
+
+      <aside class="result-panel" aria-live="polite">
+        <div class="result-card">
+          <p class="result-label">예상 가견적</p>
+          <strong id="estimateRange">-</strong>
+          <p class="result-note">입력값 기준 예상 금액입니다. 최종 견적은 사진 또는 현장 확인 후 확정됩니다.</p>
+        </div>
+
+        <dl class="summary-list" id="summaryList"></dl>
+
+        <div class="button-row">
+          <button class="primary-button" type="button" id="calculateButton">견적 다시 계산</button>
+          <button class="print-button" type="button" id="printButton">견적서 인쇄</button>
+        </div>
+      </aside>
+    </section>
+  </main>
+
+  <script defer src="main.js"></script>
 </body>
 </html>
